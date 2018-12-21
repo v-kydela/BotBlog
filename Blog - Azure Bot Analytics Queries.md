@@ -109,4 +109,4 @@ There are many possibilities of what you can achieve with these kinds of queries
 
 Happy Making!
 
-The Azure Bot Service Team
+Kyle Delaney from the Bot Framework Support Team
