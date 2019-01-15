@@ -5,7 +5,7 @@
 
 ![Analytics](https://docs.microsoft.com/en-us/azure/application-insights/media/app-insights-analytics/001.png)
 
-To get an idea of what queries you might want to run for a bot, you can switch away from the Application Insights resource and have a look at the [Analytics blade](https://docs.microsoft.com/en-us/azure/bot-service/bot-service-manage-analytics?view=azure-bot-service-4.0) in your bot resource (Web App Bot, Functions Bot, or Bot Channels Registration). That will show you the **retention**, **users**, and **activities** charts.
+To get an idea of what queries you might want to run for a bot, you can switch away from the Application Insights resource and have a look at the [Analytics blade](https://docs.microsoft.com/en-us/azure/bot-service/bot-service-manage-analytics?view=azure-bot-service-4.0) in your bot resource (Web App Bot, Functions Bot, or Bot Channels Registration). That will show you the **retention**, **users**, and **activities** charts. (Note that the current analytics visuals are not reproducible using App Insights.)
 
 ## Retention
 
@@ -109,4 +109,18 @@ There are many possibilities of what you can achieve with these kinds of queries
 
 Happy Making!
 
-Kyle Delaney from the Bot Framework Support Team
+Kyle Delaney and the Azure Bot Service Team
+
+[//]: # (
+[![Users][1]][1]
+[![Activities][2]][2]
+[![User retention][3]][3]
+  [1]: https://i.stack.imgur.com/Z0deg.jpg
+  [2]: https://i.stack.imgur.com/8TUnX.jpg
+  [3]: https://i.stack.imgur.com/ynx5N.jpg
+)
+
+[//]: # (
+Examples of who this blog is for:
+https://stackoverflow.com/questions/53149454/in-azure-bot-analytics-blade-how-do-i-get-data-on-a-specific-user-id
+)
