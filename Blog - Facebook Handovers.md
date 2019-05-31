@@ -59,11 +59,13 @@ Note that in order to call the API you will need to use the page token you gener
 Each API call has a common base URL so it's a good idea to use a helper function to handle the code that's common to all three of them. In C# it might look like this:
 
 ```c#
-public const string GraphApiBaseUrl = "https://graph.facebook.com/v2.6/me/{0}?access_token={1}";
+public const string GRAPH_API_BASE_URL = "https://graph.facebook.com/v3.3/me/{0}?access_token={1}";
+
+private static readonly HttpClient _httpClient = new HttpClient();
 
 private static async Task<bool> PostToFacebookAPIAsync(string postType, string pageToken, string content)
 {
-    var requestPath = string.Format(GraphApiBaseUrl, postType, pageToken);
+    var requestPath = string.Format(GRAPH_API_BASE_URL, postType, pageToken);
     var stringContent = new StringContent(content, Encoding.UTF8, "application/json");
 
     // Create HTTP transport objects
@@ -74,18 +76,16 @@ private static async Task<bool> PostToFacebookAPIAsync(string postType, string p
         requestMessage.Content = stringContent;
         requestMessage.Content.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse("application/json; charset=utf-8");
 
-        using (var client = new HttpClient())
+        // Make the Http call
+        using (var response = await _httpClient.SendAsync(requestMessage, CancellationToken.None).ConfigureAwait(false))
         {
-            // Make the Http call
-            using (var response = await client.SendAsync(requestMessage, CancellationToken.None).ConfigureAwait(false))
-            {
-                // Return true if the call was successfull
-                Debug.Print(await response.Content.ReadAsStringAsync());
-                return response.IsSuccessStatusCode;
-            }
+            // Return true if the call was successfull
+            Debug.Print(await response.Content.ReadAsStringAsync().ConfigureAwait(false));
+            return response.IsSuccessStatusCode;
         }
     }
 }
+
 ```
 
 This method takes three parameters. `postType` is the specific API to call and it distinguishes between the three actions you can perform, `pageToken` is of course the Facebook page token that you need to pass to the API, and `content` is JSON data that will be used as the body of the HTTP request. The content always contains a recipient which represents the Facebook user who is communicating with the page, and that allows the API to identify the conversation to perform the operation on.
@@ -98,7 +98,7 @@ Either the primary receiver or a secondary receiver can [pass thread control](ht
 public static async Task<bool> PassThreadControlAsync(string pageToken, string targetAppId, string userId, string message)
 {
     var content = new { recipient = new { id = userId }, target_app_id = targetAppId, metadata = message };
-    return await PostToFacebookAPIAsync("pass_thread_control", pageToken, JsonConvert.SerializeObject(content));
+    return await PostToFacebookAPIAsync("pass_thread_control", pageToken, JsonConvert.SerializeObject(content)).ConfigureAwait(false);
 }
 ```
 
@@ -121,7 +121,7 @@ You can use the [`Get Secondary Receivers`](https://developers.facebook.com/docs
 ```c#
 public static async Task<List<string>> GetSecondaryReceiversAsync(string pageToken)
 {
-    var requestPath = string.Format(GraphApiBaseUrl, "secondary_receivers", pageToken);
+    var requestPath = string.Format(GRAPH_API_BASE_URL, "secondary_receivers", pageToken);
 
     // Create HTTP transport objects
     using (var requestMessage = new HttpRequestMessage())
@@ -129,18 +129,15 @@ public static async Task<List<string>> GetSecondaryReceiversAsync(string pageTok
         requestMessage.Method = new HttpMethod("GET");
         requestMessage.RequestUri = new Uri(requestPath);
 
-        using (var client = new HttpClient())
+        // Make the Http call
+        using (var response = await _httpClient.SendAsync(requestMessage, CancellationToken.None).ConfigureAwait(false))
         {
-            // Make the Http call
-            using (var response = await client.SendAsync(requestMessage, CancellationToken.None).ConfigureAwait(false))
-            {
-                // Interpret response
-                var responseString = await response.Content.ReadAsStringAsync();
-                var responseObject = JObject.Parse(responseString);
-                var responseData = responseObject["data"] as JArray;
+            // Interpret response
+            var responseString = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var responseObject = JObject.Parse(responseString);
+            var responseData = responseObject["data"] as JArray;
 
-                return responseData.Select(receiver => receiver["id"].ToString()).ToList();
-            }
+            return responseData.Select(receiver => receiver["id"].ToString()).ToList();
         }
     }
 }
@@ -155,7 +152,7 @@ foreach (var receiver in secondaryReceivers)
 {
     if (receiver != PAGE_INBOX_ID)
     {
-        await turnContext.SendActivityAsync("Passing thread control to the secondary app...");
+        await turnContext.SendActivityAsync($"Primary Bot: Passing thread control to {receiver}...");
         await FacebookThreadControlHelper.PassThreadControlAsync(_configuration["FacebookPageToken"], receiver, turnContext.Activity.From.Id, text);
         break;
     }
@@ -179,7 +176,7 @@ While any receiver can pass thread control, only the primary receiver can [take 
 public static async Task<bool> TakeThreadControlAsync(string pageToken, string userId, string message)
 {
     var content = new { recipient = new { id = userId }, metadata = message };
-    return await PostToFacebookAPIAsync("take_thread_control", pageToken, JsonConvert.SerializeObject(content));
+    return await PostToFacebookAPIAsync("take_thread_control", pageToken, JsonConvert.SerializeObject(content)).ConfigureAwait(false);
 }
 ```
 
@@ -187,7 +184,7 @@ There is no need to specify any target app ID in this case because there's only 
 
 In order to know when to take thread control, it can be helpful to listen for [`standby`](https://developers.facebook.com/docs/messenger-platform/reference/webhook-events/standby) events. When a user messages your page, a `standby` event will be sent to each receiver that doesn't have thread control, so long as they've subscribed to those events. The bot connector will turn a `standby` event into a Bot Framework event activity and store the Facebook payload as the activity's value.
 
-If the app that thread control gets taken from is subscribed to `messaging_handovers` webhook events, it will receive a `conversationUpdate` activity. The Facebook payload defined in the [documentation](https://developers.facebook.com/docs/messenger-platform/handover-protocol/take-thread-control#example-messaging-handovers-event) will be stored in the activity's channel data. You can check the channel data for a `take_thread_control` field in order to recognize it as a `take_thread_control` event.
+Before thread control changes, if the thread owner is subscribed to `messaging_handovers` webhook events then it will receive a `conversationUpdate` activity. The Facebook payload defined in the [documentation](https://developers.facebook.com/docs/messenger-platform/handover-protocol/take-thread-control#example-messaging-handovers-event) will be stored in the activity's channel data. You can check the channel data for a `take_thread_control` field in order to recognize it as a `take_thread_control` event.
 
 ### Requesting thread control
 
@@ -197,7 +194,7 @@ While the primary receiver can take thread control, a secondary receiver must [r
 public static async Task<bool> RequestThreadControlAsync(string pageToken, string userId, string message)
 {
     var content = new { recipient = new { id = userId }, metadata = message };
-    return await PostToFacebookAPIAsync("request_thread_control", pageToken, JsonConvert.SerializeObject(content));
+    return await PostToFacebookAPIAsync("request_thread_control", pageToken, JsonConvert.SerializeObject(content)).ConfigureAwait(false);
 }
 ```
 
@@ -208,36 +205,47 @@ In order to know when to request thread control, it can be helpful to listen for
 If the primary receiver is subscribed to `messaging_handovers` webhook events, it will receive a `request_thread_control` event activity. The Facebook payload defined in the [documentation](https://developers.facebook.com/docs/messenger-platform/handover-protocol/request-thread-control#example-messaging-handovers-event) will be stored in the activity's value. When responding to that event activity, your bot can decide whether or not to pass control. In C# it might look like this:
 
 ```c#
+string requestedOwnerAppId = facebookPayload.RequestThreadControl.RequestedOwnerAppId;
+
 if (facebookPayload.RequestThreadControl.Metadata == "please")
 {
-    await turnContext.SendActivityAsync("The secondary app requested thread control. Passing thread control to the secondary app...");
+    await turnContext.SendActivityAsync($"Primary Bot: {requestedOwnerAppId} requested thread control nicely. Passing thread control...");
 
     var success = await FacebookThreadControlHelper.PassThreadControlAsync(
         _configuration["FacebookPageToken"],
-        facebookPayload.RequestThreadControl.RequestedOwnerAppId,
+        requestedOwnerAppId,
         facebookPayload.Sender.Id,
         "allowing thread control");
 
     if (!success)
     {
         // Account for situations when the primary receiver doesn't have thread control
-        await turnContext.SendActivityAsync("Thread control could not be passed.");
+        await turnContext.SendActivityAsync("Primary Bot: Thread control could not be passed.");
     }
 }
 else
 {
-    await turnContext.SendActivityAsync("The secondary app requested thread control but did not ask nicely. Thread control will not be passed.");
-    await ShowChoices(turnContext, cancellationToken);
+    await turnContext.SendActivityAsync($"Primary Bot: {requestedOwnerAppId} requested thread control but did not ask nicely."
+        + " Thread control will not be passed."
+        + " Send any message to continue.");
+}
 ```
 
 That code uses the `metadata` field to decide whether to pass thread control or not, but your bot can use whatever criteria you like. You can even decide to pass thread control every time it's requested.
+
+You can also decide what to do if thread control is requested but the primary receiver can't pass thread control because it's not the thread owner. The standard option is to take thread control before passing it, but this sample code just tries to pass thread control and lets the user know if it couldn't be passed.
 
 Notice that the code is using the turn context to send activities even though it's responding to an event activity. The turn context uses information from the `conversation`, `from`, and `recipient` properties of its `activity` property to send activities to the conversation, so if that data is missing then it won't be able to send activities. However, in this case the event activity contains all the necessary information in its `value` property, so you can use that to populate the `conversation`, `from`, and `recipient` properties yourself.
 
 For the Bot Framework's Facebook channel, the ID associated with the bot is the page's ID, and the ID associated with the user is something called a [page-scoped ID](https://developers.facebook.com/docs/messenger-platform/identity/id-matching/). Both of these values can be retrieved from a handover protocol event. The page ID will be in the `recipient` field and the user ID will be in the `sender` field. A conversation ID is actually composed of both the the user ID and the page ID, with a hyphen in the middle. So if you want to use the turn context to send messages in response to a `request_thread_control` event, you can modify the turn context's activity to include the necessary information. In C# you could do it like this:
 
 ```c#
-public static void ApplyFacebookPayloadToTurnContext(ITurnContext turnContext, FacebookPayload facebookPayload)
+/// <summary>
+/// This extension method populates a turn context's activity with conversation and user information from a Facebook payload.
+/// This is necessary because a turn context needs that information to send messages to a conversation,
+/// and event activities don't necessarily come with that information already in place.
+/// </summary>
+public static void ApplyFacebookPayload(this ITurnContext turnContext, FacebookPayload facebookPayload)
 {
     var userId = facebookPayload.Sender.Id;
     var pageId = facebookPayload.Recipient.Id;
@@ -251,15 +259,15 @@ public static void ApplyFacebookPayloadToTurnContext(ITurnContext turnContext, F
 
 ## The handover protocol user interface
 
-Thread control is interconnected with the folders in a page's inbox. When you pass thread control to the page inbox, the conversation gets moved to the "Main" folder. When the page inbox has thread control, whoever is controlling the page's inbox can click the "Mark as done" button not only to send the conversation to the "Done" folder but also to simultaneously pass thread control to the primary receiver, triggering a `pass_thread_control` event.
+Thread control is interconnected with the folders in a page's inbox. When you pass thread control to the page inbox, the conversation gets moved to the "Main" folder. When the page inbox has thread control, whoever is controlling the page's inbox can click the "Mark as done" button not only to send the conversation to the "Done" folder but also to simultaneously pass thread control to the primary receiver, triggering a `pass_thread_control` event with the metadata "Pass thread control from Page Inbox".
 
 ![image](https://user-images.githubusercontent.com/41968495/58518056-89315300-8162-11e9-8804-3bb8384f16c4.png)
 
-When the page inbox doesn't have thread control, you can click the "Move to Main" button to send the conversation to the Main folder and simultaneously trigger a `request_thread_control` event.
+When the page inbox doesn't have thread control, you can click the "Move to Main" button to send the conversation to the Main folder and simultaneously trigger a `request_thread_control` event without metadata.
 
 ![image](https://user-images.githubusercontent.com/41968495/58518110-b54cd400-8162-11e9-93cd-d0d3d499d161.png)
 
-Of course, because the page inbox can only be a secondary receiver, this means anyone controlling the page inbox can only obtain thread control if the primary receiver passes it to them.
+Of course, because the page inbox can only be a secondary receiver, this means anyone controlling the page inbox can only obtain thread control if the primary receiver passes it to them. Therefore, you can have a conversation in the Main folder even when a bot still has thread control. If the primary receiver takes thread control from the page inbox then it will be sent a `pass_thread_control` event even though thread control is being taken rather than passed. And once the user starts talking to the bot, the conversation will automatically be moved into the Done folder.
 
 ## Conclusion
 
