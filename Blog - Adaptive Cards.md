@@ -18,15 +18,15 @@ When specifiying the schema for an Adaptive Card, you can specify a version-spec
 
 ```json
 {
-    "$schema": "https://adaptivecards.io/schemas/1.1.0/adaptive-card.json",
-    "type": "AdaptiveCard",
-    "version": "1.0",
-    "body": [
-        {
-            "type": "TextBlock",
-            "text": "Example card"
-        }
-    ]
+  "$schema": "https://adaptivecards.io/schemas/1.1.0/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.0",
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "Example card"
+    }
+  ]
 }
 ```
 
@@ -38,7 +38,7 @@ You can find more samples of Adaptive Cards [here](https://adaptivecards.io/samp
 
 ### Packages
 
-Because Adaptive Cards can be represented as JSON strings and sent as HTTP content using the Bot Framework REST API, they can be incorporated into a bot built in any programming language. However, there are some optional packages available that can make bot development easier by providing classes that help you build and manipulate your Adaptive Cards programmatically.
+Because Adaptive Cards can be represented as JSON strings and sent as HTTP content using the [Bot Framework REST API](https://docs.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-overview), they can be incorporated into a bot built in any programming language. However, there are some optional packages available that can make bot development easier by providing classes that help you build and manipulate your Adaptive Cards programmatically.
 
 If you're building a bot in C# then you'll want the [AdaptiveCards](https://www.nuget.org/packages/AdaptiveCards/) NuGet package. Do *not* use the older [Microsoft.AdaptiveCards](https://www.nuget.org/packages/Microsoft.AdaptiveCards/) package because it's deprecated. Similarly, if you're building a bot in Node.js then you will want [adaptivecards](https://www.npmjs.com/package/adaptivecards) and not [microsoft-adaptivecards](https://www.npmjs.com/package/microsoft-adaptivecards). Note that much of the code in those packages pertains to rendering Adaptive Cards on the client side, but the included types will still help on the bot side. For example, with the types contained in the NuGet package you can construct an Adaptive Card like this rather than just relying on JSON:
 
@@ -224,11 +224,11 @@ The card (along with the message that gets sent when the user clicks a choice) w
 
 ![Choice prompt](https://user-images.githubusercontent.com/41968495/60306896-151bd380-98f7-11e9-98bf-b0d1e02b6ed3.png)
 
-There are a few important things to note about what we're doing here. The reason we're converting the card to a `JObject` is because the Bot Builder SDK preserves type data when it serializes objects into messages. This can result in sending a lot of extra information that we don't care about sending, since all we really need to send is a raw JavaScript object that fits the Adaptive Cards schema. This can even lead to exceptions if the classes you're serializing have custom serialization/deserialization functionality. Converting the card object to a `JObject` is our way of saying we just want a normal raw JavaScript object and its properties, without any special type information associated with it.
+There are a few important things to note about what we're doing here. The reason we're converting the card to a `JObject` is because the Bot Builder SDK preserves type data when it serializes objects into messages. This can result in sending a lot of extra information that we don't care about sending, since all we really need to send is a raw JavaScript object that fits the Adaptive Cards schema. The extra type information can even lead to exceptions if the classes you're serializing have custom serialization/deserialization functionality. Converting the card object to a `JObject` is our way of saying we just want a normal raw JavaScript object and its properties without any special type information associated with it.
 
 Also note that we're setting `Style` as `ListStyle.None`. Depending on the list style you've chosen, a choice prompt can automatically display the prompt's choices for you. For example, if the style is "inline" or "list" then the choices will be appended right onto the text of the activity. We don't want that to happen here because we've already included the choices in the card itself, and that's why we're setting "none" as the list style.
 
-If you want to incorporate Adaptive Card input fields into your prompt, you will only be able to use `postBack` and not `imBack`. Prompts operate based on an activity's `text` property, and you may recall that `text` will be empty in the case of a `postBack`. The trick you can use to have a prompt accept a value from a textless activity is to set the text property yourself before continuing the dialog. If you have multiple input fields, you can combine them into the text property by serializing them into a JSON string. It only makes sense to use a text prompt in this case.
+If you want to incorporate Adaptive Card input fields into your prompt, you will only be able to use `postBack` and not `imBack` (because of the limitations discussed in the Submit Actions section). Prompts operate based on an activity's `text` property, and you may recall that `text` will be empty in the case of a `postBack`. The trick you can use to have a prompt accept a value from a textless activity is to set the text property yourself before continuing the dialog. If you have multiple input fields, you can combine them into the text property by serializing them into a JSON string. It only makes sense to use a text prompt in this case.
 
 After you assign your own value to the text property of an incoming activity, you will have effectively modified that activity so that a prompt will act as though the user entered that information. As long as that modified activity remains in the turn context, anything you do with the turn context will use that modified activity. So you can assign that turn context to a dialog context and then continue the active dialog and the dialog will use whatever you put in the text property. In C# it might look like this:
 
@@ -249,7 +249,7 @@ private async Task SendValueToDialogAsync(
 }
 ```
 
-If the active dialog is a text prompt, that text prompt should return the information that came from an Adaptive Card's submit action.
+If the active dialog is a text prompt, that text prompt will return the information that came from an Adaptive Card's submit action.
 
 ## Conclusion
 
