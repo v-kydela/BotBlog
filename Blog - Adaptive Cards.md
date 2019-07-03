@@ -45,10 +45,10 @@ If you're building a bot in C# then you'll want the [AdaptiveCards](https://www.
 ```c#
 var card = new AdaptiveCard(new AdaptiveSchemaVersion(1, 0))
 {
-    Body =
+    Body = new List<AdaptiveElement>()
     {
         new AdaptiveTextBlock("Example card"),
-    }
+    },
 };
 ```
 
@@ -178,7 +178,7 @@ The Dialogs library is an essential part of the Bot Framework. While dialogs are
 
 Many channels support some form of "suggested actions" which remedy the card problem by showing the buttons only for one turn of the conversation. However, if you use cards appropriately then there may be no reason to think of this as a problem at all. Sometimes you'll want to allow users to click old cards from a previous point in the conversation, and in the situations when you don't want those old cards to do anything then your bot can choose to ignore them.
 
-Prompts are a very common form of dialog. A prompt allows for validation and automatic type conversation of user input. With a prompt, the dialog will not proceed until the user provides the right kind of information. If you're using an Adaptive Card in a dialog then it's likely that you'll want to use a prompt.
+Prompts are a very common form of dialog. A prompt allows for validation and automatic type conversion of user input. With a prompt, the dialog will not proceed until the user provides the right kind of information. If you're using an Adaptive Card in a dialog then it's likely that you'll want to use a prompt.
 
 To include any kind of card in a prompt, you can just attach it to the activity that's getting sent in the prompt. For example, you can use an Adaptive Card in a choice prompt in a waterfall step in C# like this:
 
