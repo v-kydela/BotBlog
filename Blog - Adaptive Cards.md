@@ -66,11 +66,13 @@ While Adaptive Cards have not been designed specifically for the Bot Framework, 
 
 ### Submit Actions
 
-There are two possible behaviors of a submit action in an Adaptive Card, and they correspond to the behaviors commonly referred to as `imBack` and `postBack`. While there are no universally consistent definitions for these behaviors that hold true across all channels, the expectation is that an `imBack` is an automatic message from the user to the bot that shows up in the client application's conversation history as though the user sent it manually and a `postBack` is an invisible automatic message from the user to the bot that contains hidden data. Here's what it might look like when you click on an `imBack` button:
+If you look at [`Action.Submit`](https://adaptivecards.io/explorer/Action.Submit.html) in the schema, you will see that a submit action's `data` property can be either a string or an object. A submit action has two possible behaviors that correspond to these two possible data types. If you use a string as a submit action's `data` property then the submit action will behave in a way that can be referred to as the "string" submit action behavior. If you use an object as a submit action's `data` property or if you omit the `data` property then the submit action will behave in a way that can be referred to as the "object" submit action behavior.
+
+A string submit action automatically sends a message from the user to the bot that shows up in the client application's conversation history as though the user typed the message and sent it manually. An object submit action automatically sends an invisible message from the user to the bot that contains hidden data. (To draw an analogy to the actions of other types of rich cards like hero cards and receipt cards, string submit actions and object submit actions roughly correspond to the card actions known as `imBack` and `postBack` respectively.) Here's what it might look like when you click on a string submit action:
 
 ![imBack](https://user-images.githubusercontent.com/41968495/60307051-bdca3300-98f7-11e9-89d6-5197cf4561ab.png)
 
-If you use a string as a submit action's `data` property then the submit action will operate as an `imBack`. If you use an object as a submit action's `data` property or if you omit the `data` property then the submit action will operate as a `postBack`. Here's an example of the JSON for a card with an `imBack` submit action (notice the string assigned to the `data` property):
+The JSON for that card might look like this (notice the string assigned to the submit action's `data` property):
 
 ```json
 {
@@ -87,9 +89,9 @@ If you use a string as a submit action's `data` property then the submit action 
 }
 ```
 
-The reason behind the name "submit action" becomes clear when an Adaptive Card contains input fields. A submit action is used to "submit" the information provided in the input fields by combining that information with anything already in the `data` property and sending it to the bot. Because a string cannot have properties added to it, you cannot use an `imBack` submit action in a card that contains input fields. If the submit action tries to combine the input fields with the `data` property and the `data` property is a string then the action will fail.
+The reason behind the name "submit action" becomes clear when an Adaptive Card contains input fields. A submit action is used to "submit" the information provided in the input fields by combining that information with anything already in the `data` property and sending it to the bot. Because a string cannot have properties added to it, you cannot use a string submit action in a card that contains input fields. If the submit action tries to combine the input fields with the `data` property and the `data` property is a string then the action will fail.
 
-When using the Bot Framework, clicking on a submit action will send a Bot Framework message activity to the bot. An `imBack` submit action will simply transfer its string data into the activity's `text` property. A `postBack` submit action has a somewhat more complicated process of populating the activity's `value` property while leaving the `text` property empty. Each input field in the card that sent the `postBack` will be represented as a property of that `value` object and the properties will be named according to each input field's ID. Any properties already in the `postBack` submit action's `data` property will also be present in the `value` object. For example, you might have an Adaptive Card like this:
+When using the Bot Framework, clicking on a submit action will send a Bot Framework message activity to the bot. A string submit action will simply transfer its string data into the activity's `text` property. An object submit action has a somewhat more complicated process of populating the activity's `value` property while leaving the `text` property empty. Each input field in the object submit action's card will be represented as a property of that `value` object and the properties will be named according to each input field's ID. Any properties already in the object submit action's `data` property will also be present in the `value` object. For example, you might have an Adaptive Card like this:
 
 ```json
 {
@@ -123,7 +125,7 @@ There are two input fields for the user to fill out:
 
 ![Adaptive Card with two input fields](https://user-images.githubusercontent.com/41968495/60207563-11128780-980b-11e9-9749-98db21f96d17.png)
 
-When the user clicks the submit button, an invisible `postBack` message activity will be sent from the user to the bot. That activity will have the following object as its `value` property:
+When the user clicks the submit button, an invisible message activity will be sent from the user to the bot. That activity will have the following object as its `value` property:
 
 ```json
 {
@@ -136,9 +138,9 @@ When the user clicks the submit button, an invisible `postBack` message activity
 
 Notice how both of the card's input fields are included in this object in addition to the two properties that were already present in the submit action's JSON. Also notice that the number input is represented as a string. You should expect all input fields to be represented as strings when their data is sent to the bot, regardless of what type of data they're meant to represent. Always make sure to test your cards so you know what type conversions you need to make.
 
-Because a `postBack` generates an activity of type `message`, you will need a way to distinguish such an activity from an ordinary text-based message activity like the kind that gets sent when the user types something into the chat client. In most cases it's enough to recognize a `postBack` activity by checking if the `value` property is populated and the `text` property isn't. If necessary, you can perform additional checks by seeing if the data inside the `value` object meets your expectations.
+Because an object submit action generates an activity of type `message`, you will need a way to distinguish such an activity from an ordinary text-based message activity like the kind that gets sent when the user types something into the chat client. In most cases it's enough to recognize an object submit action's activity by checking if the `value` property is populated and the `text` property isn't. If necessary, you can perform additional checks by seeing if the data inside the `value` object meets your expectations. However, there is usually no way for a bot to distinguish between a message from a string submit action and a message that the user typed into the chat client. This is by design because those messages should be treated the same way.
 
-Taking all of that into consideration, in C# you might retrieve a number from the activity's `value` property like this:
+Taking all of that into consideration, in C# you might retrieve a number from an activity's `value` property like this:
 
 ```c#
 var txt = turnContext.Activity.Text;
@@ -176,7 +178,7 @@ Other types of input can be retrieved in a similar fashion.
 
 The Dialogs library is an essential part of the Bot Framework. While dialogs are typically meant to flow in such a way where each message pertains to the message that came before it, "interruptions" can occur where the user brings up something that doesn't fit into the sequential flow of the dialog and the bot has to figure out the best way to handle that. The way cards behave may seem ill-suited for dialogs because cards are designed to persist in the conversation history so that a user may interact with an old card even when the card has become irrelevant to the current progress of the conversation. This is true for cards in general and not just Adaptive Cards.
 
-Many channels support some form of "suggested actions" which remedy the card problem by showing the buttons only for one turn of the conversation. However, if you use cards appropriately then there may be no reason to think of this as a problem at all. Sometimes you'll want to allow users to click old cards from a previous point in the conversation, and in the situations when you don't want those old cards to do anything then your bot can choose to ignore them.
+Many channels support some form of "suggested actions" which remedy the card problem by showing the buttons only for one turn of the conversation. However, if you use cards appropriately then there may be no reason to think of this as a problem at all. Sometimes you'll want to allow users to click on old cards from a previous point in the conversation, and in the situations when you don't want those old cards to do anything then your bot can choose to ignore them.
 
 Prompts are a very common form of dialog. A prompt allows for validation and automatic type conversion of user input. With a prompt, the dialog will not proceed until the user provides the right kind of information. If you're using an Adaptive Card in a dialog then it's likely that you'll want to use a prompt.
 
@@ -228,7 +230,7 @@ There are a few important things to note about what we're doing here. The reason
 
 Also note that we're setting `Style` as `ListStyle.None`. Depending on the list style you've chosen, a choice prompt can automatically display the prompt's choices for you. For example, if the style is "inline" or "list" then the choices will be appended right onto the text of the activity. We don't want that to happen here because we've already included the choices in the card itself, and that's why we're setting "none" as the list style.
 
-If you want to incorporate Adaptive Card input fields into your prompt, you will only be able to use `postBack` and not `imBack` (because of the limitations discussed in the Submit Actions section). Prompts operate based on an activity's `text` property, and you may recall that `text` will be empty in the case of a `postBack`. The trick you can use to have a prompt accept a value from a textless activity is to set the text property yourself before continuing the dialog. If you have multiple input fields, you can combine them into the text property by serializing them into a JSON string. It only makes sense to use a text prompt in this case.
+If you want to incorporate Adaptive Card input fields into your prompt, you will only be able to use object submit actions and not string submit actions (because of the limitations discussed in the Submit Actions section). Most prompts operate based on an activity's `text` property, and you may recall that `text` will be empty in the case of an object submit action. The trick you can use to have a prompt accept a value from a textless activity is to set the text property yourself before continuing the dialog. If you have multiple input fields, you can combine them into the text property by serializing them into a JSON string. It only makes sense to use a text prompt in this case.
 
 After you assign your own value to the text property of an incoming activity, you will have effectively modified that activity so that a prompt will act as though the user entered that information. As long as that modified activity remains in the turn context, anything you do with the turn context will use that modified activity. So you can assign that turn context to a dialog context and then continue the active dialog and the dialog will use whatever you put in the text property. In C# it might look like this:
 
