@@ -222,7 +222,7 @@ private async Task<DialogTurnResult> PromptWithAdaptiveCardAsync(
 }
 ```
 
-The card (along with the message that gets sent when the user clicks a choice) will look something like this:
+The card (along with the message that gets sent when the user clicks on a choice) will look something like this:
 
 ![Choice prompt](https://user-images.githubusercontent.com/41968495/60306896-151bd380-98f7-11e9-98bf-b0d1e02b6ed3.png)
 
@@ -252,6 +252,62 @@ private async Task SendValueToDialogAsync(
 ```
 
 If the active dialog is a text prompt, that text prompt will return the information that came from an Adaptive Card's submit action.
+
+### Adaptive Cards in Teams
+
+[There is some special Adaptive Card functionality that is specific to the Microsoft Teams channel.](https://docs.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-actions#adaptive-cards-actions) You can supply a special property with the name `msteams` to the object in an object submit action's `data` property in order to access this functionality. By doing so, you can get a submit action to behave like an action of your choosing. The object you put in the `msteams` property must have a `type` property in order to specify the submit action's special behavior.
+
+When the `type` property is ["messageBack"](https://docs.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-actions#adaptive-cards-with-messageback-action) the submit action will behave like a `messageBack` card action, which is like a combination of `imBack` and `postBack`. This means you can specify both visible text that will be displayed in the conversation history as well as invisible data that gets sent to the bot behind the scenes.
+
+```json
+{
+  "type": "Action.Submit",
+  "title": "Click me for messageBack",
+  "data": {
+    "msteams": {
+        "type": "messageBack",
+        "displayText": "I clicked this button",
+        "text": "text to bots",
+        "value": "{\"bfKey\": \"bfVal\", \"conflictKey\": \"from value\"}"
+    },
+    "extraData": {}
+  }
+}
+```
+
+The `displayText` string is what gets displayed in the conversation history. The `text` string will populate the activity's `text` property but will be invisible to the user. The activity's `value` property will get populated in the usual way by combining the values of any input fields with any additional properties in the `data` property's object, but it will also include any properties that have been serialized into the `value` property of the `msteams` property's object.
+
+When the `type` property is ["imBack"](https://docs.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-actions#adaptive-cards-with-imback-action) the submit action will behave like a `imBack` card action. This of course will work similarly to a string submit action but it has the advantage of not breaking when the card contains input fields, though the input fields' values will not be sent to bot when the user clicks this action and neither will any additional properties you put in the `data` property's object. Also, Microsoft Teams does not support string submit actions at the time of this writing, so you will need to use this special Teams feature if you want to simulate string submit actions.
+
+```json
+{
+  "type": "Action.Submit",
+  "title": "Click me for imBack",
+  "data": {
+    "msteams": {
+        "type": "imBack",
+        "value": "Text to reply in chat"
+    },
+    "extraData": "(this will be ignored)"
+  }
+}
+```
+
+When the `type` property is ["signin"](https://docs.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-actions#adaptive-cards-with-signin-action) the submit action will behave like a `signin` card action. This may not be necessary in most cases because `signin` actions are normally used in very simple cards, so it might make more sense to use a [signin card](https://docs.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-reference#signin-card) than an Adaptive Card. All the same, if you'd like to include a `signin` action in an Adaptive Card in Microsoft Teams, just put the sign-in URL in the `value` property of the `msteams` property's object.
+
+```json
+{
+  "type": "Action.Submit",
+  "title": "Click me for signin",
+  "data": {
+    "msteams": {
+        "type": "signin",
+        "value": "https://yoursigninurl.com/signinpath?parames=values",
+    },
+    "extraData": "(this will be ignored)"
+  }
+}
+```
 
 ## Conclusion
 
